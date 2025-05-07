@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, g, request, jsonify
 from models import db, Device
 import os
 
@@ -8,10 +8,17 @@ server.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fcm_tokens.db'
 server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(server)
 
-# create the db if not exist
-@server.before_first_request
-def create_tables():
-    db.create_all()
+# Flag to ensure DB is initialized only once
+has_initialized = False
+
+@server.before_request
+def initialize_once():
+    global has_initialized
+    if not has_initialized:
+        with server.app_context():
+            db.create_all()
+            print("Database tables created.")
+        has_initialized = True
 
 # endpoint to register the token from the app
 @server.route('/register-token', methods=['POST'])
