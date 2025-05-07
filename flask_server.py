@@ -3,7 +3,7 @@ from models import db, Device
 import os
 
 server = Flask(__name__)
-SECRET_API_KEY = "#011"
+SECRET_API_KEY = os.environ.get("SECRET_API_KEY")
 server.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fcm_tokens.db'
 server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(server)
