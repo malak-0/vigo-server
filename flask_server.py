@@ -57,6 +57,22 @@ def get_single_token():
     else:
         return jsonify({'error': 'No device found'}), 404
     
+# endpoind to receive directions from the app
+@server.route('/receive_directions', methods=['POST'])
+def receive_directions():
+    data = request.get_json()
+    directions = data.get('directions', [])
+
+    if not directions:
+        return jsonify({"error": "No directions received"}), 400
+
+    # For now, just print them or process them as needed
+    print("Received directions:")
+    for idx, instruction in enumerate(directions, start=1):
+        print(f"{idx}. {instruction}")
+
+    return jsonify({"message": "Directions received successfully", "count": len(directions)}), 200
+    
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
