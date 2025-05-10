@@ -8,20 +8,15 @@ server = Flask(__name__)
 # Load secret API key from environment variable
 SECRET_API_KEY = os.environ.get("SECRET_API_KEY")
 
-# Set full absolute path for the SQLite DB
-DB_PATH = 'C:/Users/malakmaloook/Smart glasses/flask server/fcm_tokens.db'
-server.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
+# access the db on railway
+server.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize SQLAlchemy
 db.init_app(server)
 
-# Ensure the database and tables are created at startup
+# Initialize the database tables
 with server.app_context():
-    print(f"Database will be created at: {DB_PATH}")
     db.create_all()
-
-# === ROUTES ===
 
 # Register device token
 @server.route('/register-token', methods=['POST'])
