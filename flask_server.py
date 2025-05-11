@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from models import db, Device
 import os
+import redis
+import json
 
 # Initialize Flask app
 server = Flask(__name__)
@@ -13,6 +15,17 @@ server.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(server)
+
+# Connect to Redis using the environment variable
+redis_url = os.environ.get("REDIS_URL")
+redis_client = redis.from_url(redis_url)
+
+# Check Redis connection
+try:
+    redis_client.ping()
+except redis.exceptions.ConnectionError as e:
+    print(f"Redis connection failed: {e}")
+
 
 # Initialize the database tables
 with server.app_context():
@@ -56,6 +69,8 @@ def get_single_token():
     else:
         return jsonify({'error': 'No device found'}), 404
 
+stored_directions = []
+
 # Receive directions from the app
 @server.route('/receive_directions', methods=['POST'])
 def receive_directions():
@@ -64,14 +79,21 @@ def receive_directions():
 
     if not directions:
         return jsonify({"error": "No directions received"}), 400
-
-    print("Received directions:")
-    for idx, instruction in enumerate(directions, start=1):
-        print(f"{idx}. {instruction}")
+    
+    # Store new directions, overwriting the previous value
+    redis_client.set('stored_directions', json.dumps(directions))
 
     return jsonify({"message": "Directions received successfully", "count": len(directions)}), 200
+
+# endpoint to access directions outside 
+@server.route('/get_directions', methods=['GET'])
+def get_directions():
+    raw = redis_client.get('stored_directions')
+    if raw is None:
+        return jsonify({"error": "No directions found"}), 404
+    directions = json.loads(raw)
+    return jsonify({"directions": directions})
 
 # Start the Flask server
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
