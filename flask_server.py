@@ -86,11 +86,18 @@ def receive_directions():
 # Get and remove the next direction (like a queue)
 @server.route('/pop_direction', methods=['GET'])
 def pop_direction():
-    direction = redis_client.lpop('stored_directions')
-    if direction:
-        return jsonify({"direction": direction.decode('utf-8')}), 200
-    else:
-        return jsonify({"message": "No directions yet"}), 204
+    try:
+        direction = redis_client.lpop('stored_directions')
+        if direction:
+            decoded = direction.decode('utf-8')
+            print(f"Popped direction: {decoded}")
+            return jsonify({"direction": decoded}), 200
+        else:
+            print("No directions found in Redis.")
+            return jsonify({"message": "No directions yet"}), 204  # No content
+    except Exception as e:
+        print(f"Error in /pop_direction: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # Start the Flask server
 if __name__ == "__main__":
