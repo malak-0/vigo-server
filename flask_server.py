@@ -75,24 +75,22 @@ stored_directions = []
 @server.route('/receive_directions', methods=['POST'])
 def receive_directions():
     data = request.get_json()
-    directions = data.get('directions', [])
+    direction = data.get('direction')
 
-    if not directions:
-        return jsonify({"error": "No directions received"}), 400
-    
-    # Store new directions, overwriting the previous value
-    redis_client.set('stored_directions', json.dumps(directions))
+    if not direction or not isinstance(direction, str):
+        return jsonify({"error": "Invalid direction format"}), 400
 
-    return jsonify({"message": "Directions received successfully", "count": len(directions)}), 200
+    redis_client.rpush('stored_directions', direction)
+    return jsonify({"message": "Direction received"}), 200
 
-# endpoint to access directions outside 
-@server.route('/get_directions', methods=['GET'])
-def get_directions():
-    raw = redis_client.get('stored_directions')
-    if raw is None:
-        return jsonify({"error": "No directions found"}), 404
-    directions = json.loads(raw)
-    return jsonify({"directions": directions})
+# Get and remove the next direction (like a queue)
+@server.route('/pop_direction', methods=['GET'])
+def pop_direction():
+    direction = redis_client.lpop('stored_directions')
+    if direction:
+        return jsonify({"direction": direction.decode('utf-8')}), 200
+    else:
+        return jsonify({"message": "No directions yet"}), 204
 
 # Start the Flask server
 if __name__ == "__main__":
