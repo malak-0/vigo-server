@@ -79,6 +79,11 @@ def receive_directions():
 
     if not direction or not isinstance(direction, str):
         return jsonify({"error": "Invalid direction format"}), 400
+    
+    # Ensure key is list
+    if redis_client.type('stored_directions') != b'list':
+        print("Warning: stored_directions key was not a list. Deleting and resetting it.")
+        redis_client.delete('stored_directions')
 
     redis_client.rpush('stored_directions', direction)
     return jsonify({"message": "Direction received"}), 200
@@ -87,6 +92,10 @@ def receive_directions():
 @server.route('/pop_direction', methods=['GET'])
 def pop_direction():
     try:
+        # Ensure key is list
+        if redis_client.type('stored_directions') != b'list':
+            print("Warning: stored_directions key was not a list. Deleting and resetting it.")
+            redis_client.delete('stored_directions')
         direction = redis_client.lpop('stored_directions')
         if direction:
             decoded = direction.decode('utf-8')
