@@ -75,38 +75,65 @@ stored_directions = []
 @server.route('/receive_directions', methods=['POST'])
 def receive_directions():
     data = request.get_json()
-    direction = data.get('direction')
+    directions = data.get('directions', [])
 
-    if not direction or not isinstance(direction, str):
-        return jsonify({"error": "Invalid direction format"}), 400
+    if not directions:
+        return jsonify({"error": "No directions received"}), 400
     
-    # Ensure key is list
-    if redis_client.type('stored_directions') != b'list':
-        print("Warning: stored_directions key was not a list. Deleting and resetting it.")
-        redis_client.delete('stored_directions')
+    # Store new directions, overwriting the previous value
+    redis_client.set('stored_directions', json.dumps(directions))
 
-    redis_client.rpush('stored_directions', direction)
-    return jsonify({"message": "Direction received"}), 200
+    return jsonify({"message": "Directions received successfully", "count": len(directions)}), 200
 
-# Get and remove the next direction (like a queue)
-@server.route('/pop_direction', methods=['GET'])
-def pop_direction():
-    try:
-        # Ensure key is list
-        if redis_client.type('stored_directions') != b'list':
-            print("Warning: stored_directions key was not a list. Deleting and resetting it.")
-            redis_client.delete('stored_directions')
-        direction = redis_client.lpop('stored_directions')
-        if direction:
-            decoded = direction.decode('utf-8')
-            print(f"Popped direction: {decoded}")
-            return jsonify({"direction": decoded}), 200
-        else:
-            print("No directions found in Redis.")
-            return jsonify({"message": "No directions yet"}), 204  # No content
-    except Exception as e:
-        print(f"Error in /pop_direction: {e}")
-        return jsonify({"error": str(e)}), 500
+# endpoint to access directions outside 
+@server.route('/get_directions', methods=['GET'])
+def get_directions():
+    raw = redis_client.get('stored_directions')
+    if raw is None:
+        return jsonify({"error": "No directions found"}), 404
+    directions = json.loads(raw)
+    return jsonify({"directions": directions})
+    
+# @server.route('/todo', methods=['POST'])
+# def create_task():
+#     data = request.get_json()
+#     desc = data.get('description')
+#     time = data.get('time')  # Format: "HH:MM" or None
+
+#     if not desc:
+#         return jsonify({"error": "Task description is required"}), 400
+
+#     task = Task(description=desc)
+#     if time:
+#         from datetime import datetime
+#         try:
+#             task.time = datetime.strptime(time, "%H:%M").time()
+#         except ValueError:
+#             return jsonify({"error": "Invalid time format"}), 400
+
+#     db.session.add(task)
+#     db.session.commit()
+#     return jsonify({"message": "Task created", "task": task.to_dict()}), 201
+
+# @server.route('/todo', methods=['GET'])
+# def get_all_tasks():
+#     tasks = Task.query.order_by(Task.created_at.desc()).all()
+#     return jsonify([task.to_dict() for task in tasks])
+
+# @server.route('/todo/<int:task_id>/done', methods=['PATCH'])
+# def mark_task_done(task_id):
+#     task = Task.query.get(task_id)
+#     if not task:
+#         return jsonify({"error": "Task not found"}), 404
+#     task.is_done = True
+#     db.session.commit()
+#     return jsonify({"message": "Task marked as done", "task": task.to_dict()})
+
+# @server.route('/todo/pending', methods=['GET'])
+# def get_pending_tasks():
+#     tasks = Task.query.filter_by(is_done=False).order_by(Task.created_at.asc()).all()
+#     return jsonify([task.to_dict() for task in tasks])
+
 
 # Start the Flask server
 if __name__ == "__main__":
